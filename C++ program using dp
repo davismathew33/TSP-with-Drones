@@ -1,0 +1,65 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <climits>
+
+using namespace std;
+
+const int MAX_CITIES = 10;
+const int MAX_DRONES = 3; // Maximum number of drones
+const int DRONE_CAPACITY = 10; // Capacity of each drone
+
+struct City {
+    int x, y;
+};
+
+double distance(const City& city1, const City& city2) {
+    return sqrt(pow(city1.x - city2.x, 2) + pow(city1.y - city2.y, 2));
+}
+
+double tspWithDrones(const vector<City>& cities) {
+    int n = cities.size();
+    int num_drones = min(n, MAX_DRONES); // Number of drones used, limited by number of cities
+    int num_states = 1 << num_drones; // Total number of states for drones' positions
+
+    // DP table to store the minimum distances
+    vector<vector<double>> dp(num_states, vector<double>(n, INT_MAX));
+
+    // Initialize base case
+    dp[1][0] = 0;
+
+    // Fill DP table
+    for (int mask = 1; mask < num_states; ++mask) {
+        for (int u = 0; u < n; ++u) {
+            if (mask & (1 << u)) {
+                for (int v = 0; v < n; ++v) {
+                    if (!(mask & (1 << v))) {
+                        double dist = distance(cities[u], cities[v]);
+                        dp[mask | (1 << v)][v] = min(dp[mask | (1 << v)][v], dp[mask][u] + dist);
+                    }
+                }
+            }
+        }
+    }
+
+    // Find minimum distance from the last state to the starting city
+    double min_dist = INT_MAX;
+    for (int i = 0; i < n; ++i) {
+        min_dist = min(min_dist, dp[num_states - 1][i] + distance(cities[i], cities[0]));
+    }
+
+    return min_dist;
+}
+
+int main() {
+    // Example cities
+    vector<City> cities = {{0, 0}, {1, 2}, {3, 4}, {5, 6}, {7, 8}};
+
+    // Calculate the minimum distance using TSP with drones
+    double min_distance = tspWithDrones(cities);
+
+    cout << "Minimum distance using TSP with drones: " << min_distance << endl;
+
+    return 0;
+}
