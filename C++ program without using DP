@@ -1,0 +1,159 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+const int MAX_CITIES = 10;
+const int POPULATION_SIZE = 50;
+const int MAX_GENERATIONS = 1000;
+const double MUTATION_RATE = 0.01;
+
+struct City {
+    int x, y;
+};
+
+struct Individual {
+    vector<int> order;
+    double fitness;
+};
+
+vector<City> cities;
+int num_drones = 3; // Number of drones
+int drone_capacity = 10; // Capacity of each drone
+
+double distance(const City& city1, const City& city2) {
+    return sqrt(pow(city1.x - city2.x, 2) + pow(city1.y - city2.y, 2));
+}
+
+double calcDistance(const vector<int>& order) {
+    double dist = 0.0;
+    for (int i = 0; i < order.size() - 1; ++i) {
+        dist += distance(cities[order[i]], cities[order[i + 1]]);
+    }
+    return dist;
+}
+
+double fitness(const Individual& individual) {
+    return 1.0 / (calcDistance(individual.order) + 1);
+}
+
+vector<Individual> initializePopulation() {
+    vector<Individual> population;
+    for (int i = 0; i < POPULATION_SIZE; ++i) {
+        Individual individual;
+        individual.order.resize(cities.size());
+        for (int j = 0; j < cities.size(); ++j) {
+            individual.order[j] = j;
+        }
+        random_shuffle(individual.order.begin(), individual.order.end());
+        individual.fitness = fitness(individual);
+        population.push_back(individual);
+    }
+    return population;
+}
+
+Individual crossover(const Individual& parent1, const Individual& parent2) {
+    Individual child;
+    int start = rand() % cities.size();
+    int end = rand() % cities.size();
+    for (int i = 0; i < cities.size(); ++i) {
+        if (start < end && i > start && i < end) {
+            child.order[i] = parent1.order[i];
+        } else if (start > end) {
+            if (!(i < start && i > end)) {
+                child.order[i] = parent1.order[i];
+            }
+        }
+    }
+    for (int i = 0; i < parent2.order.size(); ++i) {
+        if (find(child.order.begin(), child.order.end(), parent2.order[i]) == child.order.end()) {
+            for (int j = 0; j < child.order.size(); ++j) {
+                if (child.order[j] == -1) {
+                    child.order[j] = parent2.order[i];
+                    break;
+                }
+            }
+        }
+    }
+    child.fitness = fitness(child);
+    return child;
+}
+
+void mutate(Individual& individual) {
+    for (int i = 0; i < cities.size(); ++i) {
+        if (rand() < RAND_MAX * MUTATION_RATE) {
+            int index1 = rand() % cities.size();
+            int index2 = rand() % cities.size();
+            swap(individual.order[index1], individual.order[index2]);
+        }
+    }
+    individual.fitness = fitness(individual);
+}
+
+Individual tournamentSelection(const vector<Individual>& population) {
+    int tournamentSize = 5;
+    vector<Individual> tournament;
+    for (int i = 0; i < tournamentSize; ++i) {
+        tournament.push_back(population[rand() % population.size()]);
+    }
+    Individual best = tournament[0];
+    for (int i = 1; i < tournament.size(); ++i) {
+        if (tournament[i].fitness > best.fitness) {
+            best = tournament[i];
+        }
+    }
+    return best;
+}
+
+vector<Individual> evolvePopulation(const vector<Individual>& population) {
+    vector<Individual> newPopulation;
+    for (int i = 0; i < population.size(); ++i) {
+        Individual parent1 = tournamentSelection(population);
+        Individual parent2 = tournamentSelection(population);
+        Individual child = crossover(parent1, parent2);
+        mutate(child);
+        newPopulation.push_back(child);
+    }
+    return newPopulation;
+}
+
+int main() {
+    srand(time(NULL));
+
+    // Initialize cities
+    for (int i = 0; i < MAX_CITIES; ++i) {
+        City city;
+        city.x = rand() % 100;
+        city.y = rand() % 100;
+        cities.push_back(city);
+    }
+
+    // Initialize population
+    vector<Individual> population = initializePopulation();
+
+    // Evolution loop
+    for (int i = 0; i < MAX_GENERATIONS; ++i) {
+        population = evolvePopulation(population);
+    }
+
+    // Find the best individual
+    Individual bestIndividual = population[0];
+    for (int i = 1; i < population.size(); ++i) {
+        if (population[i].fitness > bestIndividual.fitness) {
+            bestIndividual = population[i];
+        }
+    }
+
+    // Output the best route
+    cout << "Best Route: ";
+    for (int i = 0; i < bestIndividual.order.size(); ++i) {
+        cout << bestIndividual.order[i] << " ";
+    }
+    cout << endl;
+
+    return 0;
+}
